@@ -56,7 +56,8 @@
 
   .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;cursor:pointer;display:flex;gap:11px;align-items:center}
   .card:active{background:#fafbff}
-  .card .thumb{width:50px;height:50px;border-radius:10px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto}
+  .card .thumb{width:50px;height:50px;border-radius:10px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto;overflow:hidden}
+  .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
   .card .body{flex:1;min-width:0}
   .card .nm{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .card .mt{font-size:12px;color:var(--sub);margin-top:2px}
@@ -233,6 +234,7 @@ const state={
 const $=s=>document.querySelector(s);
 const catName=id=>{const c=state.categories.find(c=>c.id===id);return c?c.name:'未分类'};
 const catIcon=id=>{const c=state.categories.find(c=>c.id===id);return c?c.icon:'📦'};
+const itemThumb=it=> (it.photos&&it.photos.length) ? `<img src="${it.photos[0]}" alt="${esc(it.name)}" />` : catIcon(it.categoryId);
 
 function expiryInfo(it){
   let date=null,kind='';
@@ -311,7 +313,7 @@ function pageHome(){
       let pill='';
       if(ex){ pill=ex.st==='err'?`<span class="pill err">已到期</span>`:ex.st==='warn'?`<span class="pill warn">即将到期</span>`:''; }
       return `<div class="card" data-item="${it.id}">
-        <div class="thumb">${catIcon(it.categoryId)}</div>
+        <div class="thumb">${itemThumb(it)}</div>
         <div class="body">
           <div class="nm">${esc(it.name)}</div>
           <div class="mt">${catName(it.categoryId)}${it.purchaseDate?(' · '+it.purchaseDate.slice(0,4)+'年'):''}${it.price?(' · '+fmtPrice(it.price)):''}</div>
@@ -443,7 +445,7 @@ function pageSearch(){
     body=`<div class="empty"><span class="g">🔍</span>没有匹配的物品<br><small>试试别的关键词或清空筛选</small></div>`;
   } else {
     body=res.map(it=>`<div class="card" data-item="${it.id}">
-      <div class="thumb">${catIcon(it.categoryId)}</div>
+      <div class="thumb">${itemThumb(it)}</div>
       <div class="body"><div class="nm">${esc(it.name)}</div>
       <div class="mt">${catName(it.categoryId)}${it.price?(' · '+fmtPrice(it.price)):''}</div></div></div>`).join('');
   }
@@ -526,17 +528,34 @@ function pageInstall(){
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent);
   const isAndroid=/android/i.test(navigator.userAgent);
   let ios=`<div class="banner info">在 iPhone 上：<br>1. 点 Safari 底部的<b>分享</b>图标 □↑<br>2. 选 <b>「添加到主屏幕」</b><br>3. 点「添加」</div>`;
-  let and=`<div class="banner info">在 Android Chrome 上：<br>1. 点右上 <b>⋮</b> 菜单<br>2. 选 <b>「添加到主屏幕」</b> 或 <b>「安装应用」</b></div>`;
+  let and=`<div class="banner info">在 Android Chrome 上：<br>1. 点右上 <b>⋮</b> 菜单<br>2. 选 <b>「安装应用」</b>（如无则选「添加到主屏幕」）</div>`;
+  const s=window.pwaStatus||{};
+  const row=(label,ok,detail)=>`<div class="setrow" style="cursor:default">
+    <div><div class="nm">${ok?'✓':'✗'} ${label}</div>${detail?`<div class="sub">${detail}</div>`:''}</div>
+    <span class="badge ${ok?'ok':'err'}">${ok?'通过':'未通过'}</span></div>`;
+  const diag=`<div class="grp-title">安装条件诊断（自动检测）</div>
+    ${row('HTTPS 安全连接',location.protocol==='https:',location.protocol==='https:'?'':'需用 https:// 打开（GitHub Pages 自带）')}
+    ${row('Manifest 清单',!!s.manifestLoaded,s.manifestLoaded?'':'manifest.json 加载失败，检查文件是否上传')}
+    ${row('Service Worker 支持',!!s.swSupported,s.swSupported?'':'当前浏览器不支持 Service Worker')}
+    ${row('Service Worker 已注册',!!s.swRegistered,s.swRegistered?'':'sw.js 注册失败，检查 sw.js 是否上传')}
+    ${row('Service Worker 已激活',!!s.swActive,s.swActive?'':'稍等几秒后重试；若一直不通过说明 sw.js 内容有误')}
+    ${row('Service Worker 正在控制本页',!!s.swControlling,s.swControlling?'':'刷新一次页面让 SW 接管')}
+    ${row('可安装（浏览器已触发安装事件）',!!s.installable,s.installable?'':'全部条件满足后会自动变为通过')}
+  `;
+  const allReady = s.swActive && s.swControlling && s.manifestLoaded;
   const canAuto=!!window.deferredPrompt;
   const autoBtn = canAuto
     ? `<button class="btn primary" id="install-btn" style="margin-top:10px">一键安装到主屏幕</button>`
-    : `<button class="btn primary" id="install-btn" style="margin-top:10px">尝试一键安装</button>`;
+    : `<button class="btn primary" id="install-btn" style="margin-top:10px">${allReady?'尝试一键安装':'等待条件就绪…'}</button>`;
   return `
     <div class="appbar"><button class="ico" data-nav="back">‹</button><div class="t">添加到主屏幕</div></div>
     <div class="content">
       <div class="empty" style="padding:20px 0 10px"><span class="g">📱</span>装到手机桌面<br><small>像原生 App 一样打开，无浏览器边框</small></div>
       ${isIOS?ios:isAndroid?and:ios+and}
-      ${canAuto?'<div class="banner ok" style="background:#e2f5ec;color:#13724f;margin-top:14px">✓ 当前浏览器支持一键安装</div>':''}
+      ${diag}
+      ${canAuto?'<div class="banner ok" style="background:#e2f5ec;color:#13724f;margin-top:14px">✓ 当前浏览器支持一键安装</div>':
+        allReady?'<div class="banner info" style="margin-top:14px">条件已满足，点上方按钮或用浏览器菜单「添加到主屏幕」</div>':
+        '<div class="banner warn" style="margin-top:14px">等待 Service Worker 激活…通常 1-3 秒。若某项长期未通过，看下面提示。</div>'}
       ${autoBtn}
       <div class="banner warn" style="margin-top:14px">数据存于本设备本地，不联网。<br>装到主屏幕后即可离线使用。</div>
     </div>`;
@@ -851,9 +870,20 @@ function compressImage(img,maxSize,quality){
 function tryInstall(){
   if(window.deferredPrompt){
     window.deferredPrompt.prompt();
-    window.deferredPrompt.userChoice.then(()=>{ window.deferredPrompt=null; });
+    window.deferredPrompt.userChoice.then(ch=>{
+      window.deferredPrompt=null;
+      if(ch.outcome==='accepted'){ showToast('正在安装…'); }
+      else { showToast('已取消安装'); }
+      render();
+    });
   } else {
-    showToast('请用浏览器菜单的「添加到主屏幕」');
+    // 兜底：检查是否只是还没准备好
+    if(window.pwaStatus.swControlling){
+      showToast('请用浏览器菜单 → 添加到主屏幕');
+    } else {
+      showToast('正在准备安装，请稍候 2-3 秒后重试…');
+      setTimeout(()=>{ if(state.page==='install') render(); },2500);
+    }
   }
 }
 
@@ -863,16 +893,60 @@ function showToast(text,undo){
   if(!undo) setTimeout(()=>{ state.toast=null; render(); },2200);
 }
 
-window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); window.deferredPrompt=e; });
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  window.deferredPrompt=e;
+  window.pwaStatus.installable=true;
+  if(state.page==='install') render();
+});
 
-/* Service Worker: 注册真实 sw.js（HTTPS / GitHub Pages 下生效，file:// 下忽略）*/
+/* PWA 安装状态追踪 */
+window.pwaStatus={
+  swSupported: 'serviceWorker' in navigator,
+  swRegistered:false,
+  swActive:false,
+  swControlling:false,
+  manifestLoaded:false,
+  installable:false,
+};
+
+/* 检测 manifest 是否加载成功 */
+(function(){
+  const link=document.querySelector('link[rel="manifest"]');
+  if(link){
+    link.addEventListener('load',()=>{ window.pwaStatus.manifestLoaded=true; });
+    link.addEventListener('error',()=>{ window.pwaStatus.manifestLoaded=false; });
+    // 主动拉取验证
+    fetch(link.href).then(r=>{ if(r.ok) window.pwaStatus.manifestLoaded=true; }).catch(()=>{});
+  }
+})();
+
+/* Service Worker: 尽早注册（HTTPS / GitHub Pages 下生效，file:// 下忽略）*/
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => {
-      console.log('SW 注册失败（在 file:// 下属正常，部署到 https 后会生效）：', err);
+  // 立即注册，不等 load
+  navigator.serviceWorker.register('./sw.js')
+    .then(reg=>{
+      window.pwaStatus.swRegistered=true;
+      const updateSW=()=>{
+        window.pwaStatus.swActive=!!(reg.active);
+        window.pwaStatus.swControlling=!!(navigator.serviceWorker.controller);
+        if(state.page==='install') render();
+      };
+      updateSW();
+      reg.addEventListener('updatefound',()=>{
+        const sw=reg.installing;
+        if(sw) sw.addEventListener('statechange',updateSW);
+      });
+      navigator.serviceWorker.addEventListener('controllerchange',updateSW);
+      if(state.page==='install') render();
+    })
+    .catch(err=>{
+      console.log('SW 注册失败：', err);
+      window.pwaStatus.swRegistered=false;
+      if(state.page==='install') render();
     });
-  });
 }
+
 
 /* ====== 启动 ====== */
 init();
