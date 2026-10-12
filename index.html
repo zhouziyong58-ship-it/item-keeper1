@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#3a5bef" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="物品清单" />
+<title>物品清单</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --ink:#1a1d21; --sub:#5b6470; --line:#e3e6ea;
+    --brand:#3a5bef; --brand-soft:#eef1ff; --ok:#1a9d6c; --warn:#e08a00; --err:#d6404a;
+    --chip:#eef0f3; --safe:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--ink); font-size:15px; line-height:1.6;
+    overscroll-behavior-y:contain;
+  }
+  h1,h2,h3,h4{line-height:1.3;margin:0 0 .5em}
+  p{margin:0 0 .7em}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:.5em 0 1em}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  button{font-family:inherit}
+
+  #app{max-width:560px;margin:0 auto;min-height:100%;background:var(--bg);position:relative;display:flex;flex-direction:column}
+
+  .appbar{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));
+    background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+  .appbar .t{font-weight:700;font-size:17px;flex:1}
+  .appbar .sub{font-size:11px;color:var(--sub);margin-top:2px}
+  .appbar .ico{font-size:22px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--brand);background:none;border:0}
+
+  .content{flex:1 1 auto;overflow-y:auto;padding:12px 12px 90px;-webkit-overflow-scrolling:touch}
+
+  .searchbar{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:9px 12px;margin-bottom:10px;cursor:pointer}
+  .searchbar .ph{color:var(--sub);font-size:14px;flex:1}
+
+  .chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .chips .c{white-space:nowrap;background:#fff;border:1px solid var(--line);border-radius:16px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--sub)}
+  .chips .c.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;cursor:pointer;display:flex;gap:11px;align-items:center}
+  .card:active{background:#fafbff}
+  .card .thumb{width:50px;height:50px;border-radius:10px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto}
+  .card .body{flex:1;min-width:0}
+  .card .nm{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .mt{font-size:12px;color:var(--sub);margin-top:2px}
+  .card .pill{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--chip);color:var(--sub);flex:0 0 auto}
+  .card .pill.warn{background:#fff0d6;color:#9a6b00}
+  .card .pill.err{background:#ffe3e5;color:#a02129}
+
+  .fab{position:fixed;right:max(14px,calc(50% - 270px + 14px));bottom:calc(76px + var(--safe));width:52px;height:52px;border-radius:50%;background:var(--brand);color:#fff;border:0;font-size:28px;cursor:pointer;box-shadow:0 6px 16px rgba(58,91,239,.4);display:flex;align-items:center;justify-content:center;z-index:30}
+
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:5px}
+  .field .req{color:var(--err)}
+  .field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink)}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .field textarea{min-height:70px;resize:vertical}
+  .field .row{display:flex;gap:8px}
+  .field .row>*{flex:1;min-width:0}
+  .photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+  .photo-grid .ph{aspect-ratio:1;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--sub);cursor:pointer;background:#fafbfc;overflow:hidden;position:relative}
+  .photo-grid .ph img{width:100%;height:100%;object-fit:cover;border-radius:7px}
+  .photo-grid .ph .x{position:absolute;top:2px;right:4px;font-size:14px;color:#fff;background:rgba(0,0,0,.5);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center}
+
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:10px 12px;font-size:14px;cursor:pointer;color:var(--ink);width:100%}
+  .btn.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn.ghost{background:transparent}
+  .btn.danger{color:var(--err);border-color:#f0cfd1;background:#fff5f6}
+  .btn:active{opacity:.85}
+
+  .formbar{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;padding:10px 12px calc(10px + var(--safe));background:#fff;border-top:1px solid var(--line);display:flex;gap:8px;z-index:25}
+
+  .empty{text-align:center;color:var(--sub);padding:50px 16px}
+  .empty .g{font-size:50px;display:block;margin-bottom:10px}
+
+  .rmnd{display:flex;justify-content:space-between;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+  .rmnd:active{background:#fafbff}
+  .rmnd .lt{font-weight:600;font-size:14px}
+  .rmnd .rt{font-size:11px;color:var(--sub);margin-top:2px}
+  .badge{font-size:11px;padding:2px 9px;border-radius:11px;flex:0 0 auto}
+  .badge.warn{background:#fff0d6;color:#9a6b00}
+  .badge.err{background:#ffe3e5;color:#a02129}
+  .badge.ok{background:#e2f5ec;color:#13724f}
+
+  .setrow{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+  .setrow:active{background:#fafbff}
+  .setrow .nm{font-size:14.5px}
+  .setrow .sub{font-size:12px;color:var(--sub);margin-top:3px}
+  .setrow .arr{color:var(--sub);font-size:18px}
+
+  .bottomnav{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;height:calc(58px + var(--safe));background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:var(--safe);z-index:25}
+  .bottomnav button{flex:1;border:0;background:transparent;font-size:11px;color:var(--sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding-top:6px}
+  .bottomnav button .g{font-size:21px}
+  .bottomnav button.on{color:var(--brand)}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + var(--safe));background:#11141a;color:#fff;padding:10px 18px;border-radius:22px;font-size:13px;z-index:40;box-shadow:0 6px 18px rgba(0,0,0,.3);max-width:90%;text-align:center}
+  .toast a{color:#9db4ff;cursor:pointer;margin-left:8px;text-decoration:underline}
+
+  .sheet-title{font-size:12px;color:var(--sub);margin:6px 2px 8px}
+  .grp-title{font-size:12px;color:var(--sub);margin:12px 2px 4px}
+  .input-error{border-color:var(--err) !important;box-shadow:0 0 0 3px #ffe6e8 !important}
+  .banner{padding:10px 12px;border-radius:9px;margin-bottom:10px;font-size:13px}
+  .banner.warn{background:#fff8e8;color:#7a5400}
+  .banner.err{background:#fff0f1;color:#7a1a22}
+  .banner.info{background:var(--brand-soft);color:#1f3aaa}
+  .seg{display:flex;background:var(--chip);border-radius:9px;padding:2px;margin-bottom:10px}
+  .seg button{flex:1;border:0;background:transparent;padding:7px;font-size:13px;color:var(--sub);border-radius:7px;cursor:pointer}
+  .seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .tag-list span{display:inline-block;background:var(--brand-soft);color:#1f3aaa;border-radius:11px;padding:2px 9px;font-size:12px;margin:0 4px 4px 0}
+  .hidden{display:none !important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============ IndexedDB ============ */
+const DB_NAME='item-keeper', DB_VER=1;
+let _db=null;
+function db(){
+  return new Promise((res,rej)=>{
+    if(_db) return res(_db);
+    const r=indexedDB.open(DB_NAME,DB_VER);
+    r.onupgradeneeded=e=>{
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains('items')){
+        const s=d.createObjectStore('items',{keyPath:'id'});
+        s.createIndex('categoryId','categoryId',{unique:false});
+      }
+      if(!d.objectStoreNames.contains('categories')) d.createObjectStore('categories',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta',{keyPath:'k'});
+    };
+    r.onsuccess=()=>{ _db=r.result; res(_db); };
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function dbAll(store){
+  const d=await db();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction(store,'readonly').objectStore(store).getAll();
+    tx.onsuccess=()=>res(tx.result);
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+async function dbGet(store,id){
+  const d=await db();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction(store,'readonly').objectStore(store).get(id);
+    tx.onsuccess=()=>res(tx.result);
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+async function dbPut(store,obj){
+  const d=await db();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction(store,'readwrite').objectStore(store).put(obj);
+    tx.onsuccess=()=>res(obj);
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+async function dbDel(store,id){
+  const d=await db();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction(store,'readwrite').objectStore(store).delete(id);
+    tx.onsuccess=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+async function dbClear(store){
+  const d=await db();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction(store,'readwrite').objectStore(store).clear();
+    tx.onsuccess=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+
+/* ============ STATE ============ */
+const today=new Date(); today.setHours(0,0,0,0);
+const fmtDate=d=>{if(!d)return'';const x=new Date(d);if(isNaN(x))return'';return x.toISOString().slice(0,10)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+const fmtPrice=p=> p==null?'':'¥'+(+p).toLocaleString();
+
+const DEFAULT_CATS=[
+  {id:'c1',name:'家电',icon:'📺',isCustom:false,sortOrder:1},
+  {id:'c2',name:'数码',icon:'📷',isCustom:false,sortOrder:2},
+  {id:'c3',name:'家具',icon:'🛋',isCustom:false,sortOrder:3},
+  {id:'c4',name:'衣物',icon:'👕',isCustom:false,sortOrder:4},
+  {id:'c5',name:'厨具',icon:'🍳',isCustom:false,sortOrder:5},
+  {id:'c6',name:'工具',icon:'🔧',isCustom:false,sortOrder:6},
+  {id:'c7',name:'其他',icon:'📦',isCustom:false,sortOrder:99},
+];
+
+const SAMPLE_ITEMS=[
+  {id:'i1',name:'滚筒洗衣机 XQG100',categoryId:'c1',purchaseDate:'2024-03-15',price:3299,quantity:1,
+   usageNote:'混合洗模式；低温脱水防皱。',photos:[],warrantyExpiry:'2027-03-15',tags:['海尔'],createdAt:'2026-09-30',updatedAt:'2026-09-30',ownerId:'me'},
+  {id:'i2',name:'降噪耳机 WH-1000',categoryId:'c2',purchaseDate:'2025-10-12',price:1299,quantity:1,
+   usageNote:'长按电源 2 秒开机；双击切下一曲。',photos:[],warrantyExpiry:'2026-10-15',tags:[],createdAt:'2026-10-10',updatedAt:'2026-10-10',ownerId:'me'},
+];
+
+const state={
+  page:'home',          // home | add | detail | search | reminders | categories | settings | install
+  items:[], categories:[],
+  selectedCategory:'all',
+  selectedItemId:null,
+  searchQuery:'',
+  expiredOnly:false,
+  toast:null,
+  formData:null,
+  formDataError:null,
+  _lastDeleted:null,
+  _lastAddedId:null,
+};
+
+/* ============ HELPERS ============ */
+const $=s=>document.querySelector(s);
+const catName=id=>{const c=state.categories.find(c=>c.id===id);return c?c.name:'未分类'};
+const catIcon=id=>{const c=state.categories.find(c=>c.id===id);return c?c.icon:'📦'};
+
+function expiryInfo(it){
+  let date=null,kind='';
+  if(it.warrantyExpiry){date=it.warrantyExpiry;kind='保修';}
+  else if(it.replacementCycleDays&&it.lastReplacedAt){date=addDays(it.lastReplacedAt,it.replacementCycleDays);kind='更换';}
+  if(!date)return null;
+  const dt=new Date(date); dt.setHours(0,0,0,0);
+  const diff=Math.round((dt-today)/86400000);
+  let st='ok';
+  if(diff<0)st='err';
+  else if(diff<=7)st='warn';
+  return {date,kind,diff,st};
+}
+
+/* ============ INIT ============ */
+async function init(){
+  await ensureSeed();
+  state.categories=await dbAll('categories');
+  state.categories.sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  state.items=await dbAll('items');
+  render();
+}
+async function ensureSeed(){
+  const meta=await dbGet('meta','seeded');
+  if(meta&&meta.v===1)return;
+  for(const c of DEFAULT_CATS) await dbPut('categories',c);
+  for(const it of SAMPLE_ITEMS) await dbPut('items',it);
+  await dbPut('meta',{k:'seeded',v:1});
+}
+
+/* ============ RENDER ============ */
+function render(){
+  const app=$('#app');
+  app.innerHTML=wrap(renderPage());
+  bindEvents();
+}
+function wrap(inner){
+  return inner+renderToast();
+}
+function renderToast(){
+  if(!state.toast)return '';
+  return `<div class="toast">${state.toast.text}${state.toast.undo?`<a onclick="undoToast()">撤销</a>`:''}</div>`;
+}
+
+function renderPage(){
+  switch(state.page){
+    case 'home': return pageHome();
+    case 'add': return pageAdd();
+    case 'detail': return pageDetail();
+    case 'search': return pageSearch();
+    case 'reminders': return pageReminders();
+    case 'categories': return pageCategories();
+    case 'settings': return pageSettings();
+    case 'install': return pageInstall();
+    default: return pageHome();
+  }
+}
+
+/* ---- HOME ---- */
+function pageHome(){
+  let items=state.items.filter(it=> state.selectedCategory==='all'||it.categoryId===state.selectedCategory);
+  items.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  const chips=`<div class="chips">${['all',...state.categories.map(c=>c.id)].map(id=>{
+    const label=id==='all'?'全部':catName(id);
+    return `<span class="c ${state.selectedCategory===id?'on':''}" data-cat="${id}">${id==='all'?'🗂':catIcon(id)} ${label}</span>`;
+  }).join('')}</div>`;
+  let body;
+  if(state.items.length===0){
+    body=`<div class="empty"><span class="g">📦</span>还没有物品<br><small>点右下「+」记录第一件</small></div>`;
+  } else if(items.length===0){
+    body=`<div class="empty"><span class="g">📭</span>该分类下暂无物品</div>`;
+  } else {
+    body=items.map(it=>{
+      const ex=expiryInfo(it);
+      let pill='';
+      if(ex){ pill=ex.st==='err'?`<span class="pill err">已到期</span>`:ex.st==='warn'?`<span class="pill warn">即将到期</span>`:''; }
+      return `<div class="card" data-item="${it.id}">
+        <div class="thumb">${catIcon(it.categoryId)}</div>
+        <div class="body">
+          <div class="nm">${esc(it.name)}</div>
+          <div class="mt">${catName(it.categoryId)}${it.purchaseDate?(' · '+it.purchaseDate.slice(0,4)+'年'):''}${it.price?(' · '+fmtPrice(it.price)):''}</div>
+        </div>
+        ${pill}
+      </div>`;
+    }).join('');
+  }
+  return `
+    <div class="appbar"><div><div class="t">我的物品</div><div class="sub">${state.items.length} 件 · 本地存储${navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)?' · 已安装':''}</div></div></div>
+    <div class="content">
+      <div class="searchbar" data-nav="search"><span>🔍</span><span class="ph">搜索物品、标签…</span></div>
+      ${chips}
+      ${body}
+    </div>
+    <button class="fab" data-nav="add">+</button>
+    ${bottomNav('home')}`;
+}
+
+/* ---- ADD/EDIT ---- */
+function pageAdd(){
+  const editing=!!state.formData?.id;
+  const e=state.formDataError||{};
+  const f=state.formData||{name:'',categoryId:state.categories[0]?.id,purchaseDate:'',price:'',quantity:1,usageNote:'',warrantyExpiry:'',tags:'',replacementCycleDays:'',lastReplacedAt:'',photos:[]};
+  return `
+    <div class="appbar">
+      <button class="ico" data-nav="back">‹</button>
+      <div class="t">${editing?'编辑物品':'新增物品'}</div>
+    </div>
+    <div class="content">
+      <div class="field">
+        <label>名称 <span class="req">*</span></label>
+        <input id="f-name" value="${esc(f.name)}" placeholder="如：滚筒洗衣机" class="${e.name?'input-error':''}" />
+      </div>
+      <div class="field">
+        <label>分类 <span class="req">*</span></label>
+        <select id="f-cat">${state.categories.map(c=>`<option value="${c.id}" ${c.id===f.categoryId?'selected':''}>${catIcon(c.id)} ${esc(c.name)}</option>`).join('')}</select>
+      </div>
+      <div class="field"><div class="row">
+        <div><label>购入日期</label><input id="f-pdate" type="date" value="${f.purchaseDate||''}" /></div>
+        <div><label>价格 ¥</label><input id="f-price" type="number" step="0.01" inputmode="decimal" value="${f.price??''}" placeholder="0.00" /></div>
+      </div></div>
+      <div class="field"><div class="row">
+        <div><label>数量</label><input id="f-qty" type="number" inputmode="numeric" value="${f.quantity??1}" /></div>
+        <div><label>保修到期</label><input id="f-warranty" type="date" value="${f.warrantyExpiry||''}" /></div>
+      </div></div>
+      <div class="field"><div class="row">
+        <div><label>更换周期(天)</label><input id="f-cycle" type="number" inputmode="numeric" value="${f.replacementCycleDays||''}" placeholder="如滤芯 180" /></div>
+        <div><label>上次更换日</label><input id="f-last" type="date" value="${f.lastReplacedAt||''}" /></div>
+      </div></div>
+      <div class="field">
+        <label>使用方法 / 备注</label>
+        <textarea id="f-usage" placeholder="如何使用、注意事项…">${esc(f.usageNote||'')}</textarea>
+      </div>
+      <div class="field">
+        <label>标签（逗号分隔）</label>
+        <input id="f-tags" value="${esc(f.tags||'')}" placeholder="海尔, 耗材" />
+      </div>
+      <div class="field">
+        <label>照片（最多 9 张）</label>
+        <div class="photo-grid" id="photo-grid">
+          ${renderPhotoGrid(f.photos||[])}
+        </div>
+        <input type="file" id="f-photo-input" accept="image/*" multiple class="hidden" />
+      </div>
+    </div>
+    <div class="formbar">
+      <button class="btn ghost" data-nav="back">取消</button>
+      <button class="btn primary" id="f-save">保存</button>
+    </div>`;
+}
+function renderPhotoGrid(photos){
+  const cells=photos.map((p,i)=>`<div class="ph" data-photo-del="${i}"><img src="${p}" /><span class="x">×</span></div>`).join('');
+  const addBtn=photos.length<9?`<div class="ph" id="photo-add">＋</div>`:'';
+  return cells+addBtn;
+}
+
+/* ---- DETAIL ---- */
+function pageDetail(){
+  const it=state.items.find(x=>x.id===state.selectedItemId);
+  if(!it){ state.page='home'; return pageHome(); }
+  const ex=expiryInfo(it);
+  let banner='';
+  if(ex&&ex.st!=='ok'){
+    banner=`<div class="banner ${ex.st==='err'?'err':'warn'}">⚠ ${ex.st==='err'?'已到期':'即将到期'} · ${ex.kind}：${ex.date}${ex.diff<0?`（已过 ${-ex.diff} 天）`:''}</div>`;
+  }
+  const photos=(it.photos&&it.photos.length)?`<div style="margin-top:10px"><div style="font-size:12px;color:var(--sub);margin-bottom:6px">照片</div>
+    <div class="photo-grid">${it.photos.map(p=>`<div class="ph" style="cursor:default"><img src="${p}" /></div>`).join('')}</div></div>`:'';
+  return `
+    <div class="appbar"><button class="ico" data-nav="back">‹</button><div class="t">物品详情</div></div>
+    <div class="content">
+      ${banner}
+      <div style="text-align:center;padding:8px 0 14px"><div style="font-size:60px">${catIcon(it.categoryId)}</div>
+        <div style="font-weight:700;font-size:18px;margin-top:6px">${esc(it.name)}</div>
+        <span class="tag-list"><span>${catName(it.categoryId)}</span></span>
+        ${(it.tags||[]).map(t=>`<span>${esc(t)}</span>`).join('')}
+      </div>
+      ${detRow('购入日期',it.purchaseDate||'—')}
+      ${detRow('价格',it.price?fmtPrice(it.price):'—')}
+      ${detRow('数量',it.quantity??1)}
+      ${detRow('保修到期',it.warrantyExpiry||'—')}
+      ${it.replacementCycleDays?detRow('更换周期',it.replacementCycleDays+' 天'):''}
+      ${it.lastReplacedAt?detRow('上次更换',it.lastReplacedAt):''}
+      <div style="margin-top:14px"><div style="font-size:12px;color:var(--sub);margin-bottom:6px">使用方法</div>
+        <div style="background:var(--chip);border-radius:9px;padding:11px;font-size:14px;white-space:pre-wrap">${esc(it.usageNote||'—')}</div>
+      </div>
+      ${photos}
+      ${ex&&ex.kind==='更换'?`<button class="btn" id="d-replaced" style="margin-top:14px">标记为已更换（重置周期）</button>`:''}
+    </div>
+    <div class="formbar">
+      <button class="btn danger" id="d-del">删除</button>
+      <button class="btn primary" id="d-edit">编辑</button>
+    </div>`;
+}
+function detRow(k,v){return `<div class="setrow"><div class="nm">${k}</div><div style="font-size:14px">${esc(String(v))}</div></div>`}
+
+/* ---- SEARCH ---- */
+function pageSearch(){
+  const q=state.searchQuery.trim().toLowerCase();
+  let res=state.items.filter(it=>{
+    const hay=(it.name+' '+(it.tags||[]).join(' ')+(it.usageNote||'')).toLowerCase();
+    return !q||hay.includes(q);
+  });
+  if(state.expiredOnly) res=res.filter(it=>{const e=expiryInfo(it);return e&&e.st!=='ok'});
+  let body;
+  if(res.length===0){
+    body=`<div class="empty"><span class="g">🔍</span>没有匹配的物品<br><small>试试别的关键词或清空筛选</small></div>`;
+  } else {
+    body=res.map(it=>`<div class="card" data-item="${it.id}">
+      <div class="thumb">${catIcon(it.categoryId)}</div>
+      <div class="body"><div class="nm">${esc(it.name)}</div>
+      <div class="mt">${catName(it.categoryId)}${it.price?(' · '+fmtPrice(it.price)):''}</div></div></div>`).join('');
+  }
+  return `
+    <div class="appbar"><button class="ico" data-nav="back">‹</button>
+      <input id="s-input" value="${esc(state.searchQuery)}" placeholder="搜索名称、标签、备注…" style="border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:15px;flex:1;background:#fff" /></div>
+    <div class="content">
+      <div class="setrow" id="s-filter">
+        <div><div class="nm">仅看到期物品</div><div class="sub">保修或更换周期已到期</div></div>
+        <span class="badge ${state.expiredOnly?'err':''}">${state.expiredOnly?'已开启':'关闭'}</span>
+      </div>
+      <div class="sheet-title">结果 ${res.length} 件</div>
+      ${body}
+    </div>`;
+}
+
+/* ---- REMINDERS ---- */
+function pageReminders(){
+  const list=state.items.map(it=>({it,ex:expiryInfo(it)})).filter(o=>o.ex&&o.ex.st!=='ok');
+  list.sort((a,b)=>a.ex.date.localeCompare(b.ex.date));
+  const expired=list.filter(o=>o.ex.st==='err');
+  const soon=list.filter(o=>o.ex.st==='warn');
+  let body;
+  if(list.length===0){
+    body=`<div class="empty"><span class="g">✅</span>暂无到期提醒，安心使用</div>`;
+  } else {
+    const grp=(arr,title)=>arr.length?`<div class="grp-title">${title}</div>`+
+      arr.map(({it,ex})=>`<div class="rmnd" data-item="${it.id}">
+        <div><div class="lt">${esc(it.name)}</div><div class="rt">${catName(it.categoryId)} · ${ex.kind}</div></div>
+        <span class="badge ${ex.st==='err'?'err':'warn'}">${ex.st==='err'?'已过'+(-ex.diff)+'天':'剩'+ex.diff+'天'}</span>
+      </div>`).join(''):'';
+    body=grp(expired,'已到期')+grp(soon,'即将到期（7 天内）');
+  }
+  return `
+    <div class="appbar"><div class="t">提醒中心</div><div class="sub">App 内提醒 · 不做系统推送</div></div>
+    <div class="content">${body}</div>
+    ${bottomNav('reminders')}`;
+}
+
+/* ---- CATEGORIES ---- */
+function pageCategories(){
+  const rows=state.categories.map(c=>{
+    const n=state.items.filter(it=>it.categoryId===c.id).length;
+    return `<div class="setrow" data-cat-edit="${c.id}">
+      <div><div class="nm">${catIcon(c.id)} ${esc(c.name)} ${!c.isCustom?'<span class="badge ok">预置</span>':''}</div>
+      <div class="sub">${n} 件物品 ${c.isCustom?'':'· 不可删除'}</div></div>
+      <span class="arr">›</span></div>`;
+  }).join('');
+  return `
+    <div class="appbar"><button class="ico" data-nav="back">‹</button><div class="t">分类管理</div></div>
+    <div class="content">
+      <div class="sheet-title">预置分类可改名，自建分类可删除（需先迁移物品）。</div>
+      ${rows}
+      <button class="btn primary" style="margin-top:16px" id="c-add">+ 新建分类</button>
+    </div>`;
+}
+
+/* ---- SETTINGS ---- */
+function pageSettings(){
+  return `
+    <div class="appbar"><div class="t">设置</div></div>
+    <div class="content">
+      <div class="setrow" data-nav="install">
+        <div><div class="nm">添加到主屏幕</div><div class="sub">像 App 一样打开</div></div><span class="arr">›</span></div>
+      <div class="setrow" data-nav="categories">
+        <div><div class="nm">分类管理</div><div class="sub">改名 · 新建 · 删除</div></div><span class="arr">›</span></div>
+      <div class="setrow" id="s-export">
+        <div><div class="nm">导出数据</div><div class="sub">JSON / CSV 备份</div></div><span class="arr">›</span></div>
+      <div class="setrow" id="s-import">
+        <div><div class="nm">导入数据</div><div class="sub">从备份文件恢复</div></div><span class="arr">›</span></div>
+      <div class="setrow" id="s-clear">
+        <div><div class="nm" style="color:var(--err)">清空全部数据</div><div class="sub">不可恢复，建议先导出</div></div><span class="arr">›</span></div>
+      <div style="margin-top:22px;font-size:11px;color:var(--sub);text-align:center">物品清单 v1.0 · 本地优先 · 无后端</div>
+    </div>
+    ${bottomNav('settings')}`;
+}
+
+/* ---- INSTALL GUIDE ---- */
+function pageInstall(){
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)&&!/crios|fxios/i.test(navigator.userAgent);
+  const isAndroid=/android/i.test(navigator.userAgent);
+  let ios=`<div class="banner info">在 iPhone 上：<br>1. 点 Safari 底部的<b>分享</b>图标 □↑<br>2. 选 <b>「添加到主屏幕」</b><br>3. 点「添加」</div>`;
+  let and=`<div class="banner info">在 Android Chrome 上：<br>1. 点右上 <b>⋮</b> 菜单<br>2. 选 <b>「添加到主屏幕」</b> 或 <b>「安装应用」</b></div>`;
+  const canAuto=!!window.deferredPrompt;
+  const autoBtn = canAuto
+    ? `<button class="btn primary" id="install-btn" style="margin-top:10px">一键安装到主屏幕</button>`
+    : `<button class="btn primary" id="install-btn" style="margin-top:10px">尝试一键安装</button>`;
+  return `
+    <div class="appbar"><button class="ico" data-nav="back">‹</button><div class="t">添加到主屏幕</div></div>
+    <div class="content">
+      <div class="empty" style="padding:20px 0 10px"><span class="g">📱</span>装到手机桌面<br><small>像原生 App 一样打开，无浏览器边框</small></div>
+      ${isIOS?ios:isAndroid?and:ios+and}
+      ${canAuto?'<div class="banner ok" style="background:#e2f5ec;color:#13724f;margin-top:14px">✓ 当前浏览器支持一键安装</div>':''}
+      ${autoBtn}
+      <div class="banner warn" style="margin-top:14px">数据存于本设备本地，不联网。<br>装到主屏幕后即可离线使用。</div>
+    </div>`;
+}
+
+function bottomNav(on){
+  const mk=(id,g,label,target)=>`<button class="${on===id?'on':''}" data-nav="${target}"><span class="g">${g}</span>${label}</button>`;
+  return `<div class="bottomnav">
+    ${mk('home','🗂','物品','home')}
+    ${mk('reminders','🔔','提醒','reminders')}
+    ${mk('settings','⚙','设置','settings')}
+  </div>`;
+}
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+/* ============ EVENTS ============ */
+function bindEvents(){
+  const app=$('#app');
+  app.querySelectorAll('[data-nav]').forEach(el=>{
+    el.addEventListener('click',e=>{
+      e.stopPropagation();
+      const t=el.getAttribute('data-nav');
+      if(t==='back'){ if(state.page==='add'||state.page==='detail'||state.page==='search'||state.page==='categories'||state.page==='install'){ state.page=state._prevPage||'home'; } else state.page='home'; state.formData=null; state.formDataError=null; render(); return; }
+      if(t==='add'){ state._prevPage=state.page==='home'?'home':'home'; state.formData={categoryId:state.selectedCategory==='all'?(state.categories[0]?.id):state.selectedCategory,photos:[]}; }
+      if(t==='search'){ state.searchQuery=''; state._prevPage='home'; }
+      if(t==='categories'||t==='install'){ state._prevPage='settings'; }
+      if(t==='home'||t==='reminders'||t==='settings'){ state._prevPage=t; }
+      state.page=t; render();
+    });
+  });
+  app.querySelectorAll('[data-cat]').forEach(el=>{
+    el.addEventListener('click',e=>{ e.stopPropagation(); state.selectedCategory=el.getAttribute('data-cat'); render(); });
+  });
+  app.querySelectorAll('[data-item]').forEach(el=>{
+    el.addEventListener('click',e=>{ e.stopPropagation(); state._prevPage=state.page; state.selectedItemId=el.getAttribute('data-item'); state.page='detail'; render(); });
+  });
+  app.querySelectorAll('[data-cat-edit]').forEach(el=>{
+    el.addEventListener('click',e=>{ e.stopPropagation(); editCategory(el.getAttribute('data-cat-edit')); });
+  });
+  const si=app.querySelector('#s-input');
+  if(si){ si.addEventListener('input',()=>{ state.searchQuery=si.value; refreshSearchOnly(); }); si.focus(); }
+  const filterToggle=app.querySelector('#s-filter');
+  if(filterToggle) filterToggle.addEventListener('click',()=>{ state.expiredOnly=!state.expiredOnly; render(); });
+  const save=app.querySelector('#f-save'); if(save) save.addEventListener('click',saveItem);
+  const del=app.querySelector('#d-del'); if(del) del.addEventListener('click',deleteItem);
+  const edt=app.querySelector('#d-edit'); if(edt) edt.addEventListener('click',editItem);
+  const rep=app.querySelector('#d-replaced'); if(rep) rep.addEventListener('click',markReplaced);
+  const cAdd=app.querySelector('#c-add'); if(cAdd) cAdd.addEventListener('click',addCategory);
+  const sClear=app.querySelector('#s-clear'); if(sClear) sClear.addEventListener('click',clearAll);
+  const sExport=app.querySelector('#s-export'); if(sExport) sExport.addEventListener('click',exportData);
+  const sImport=app.querySelector('#s-import'); if(sImport) sImport.addEventListener('click',importData);
+  const photoAdd=app.querySelector('#photo-add'); 
+  const photoInput=app.querySelector('#f-photo-input');
+  if(photoAdd&&photoInput){ photoAdd.addEventListener('click',()=>photoInput.click()); photoInput.addEventListener('change',handlePhotoAdd); }
+  app.querySelectorAll('[data-photo-del]').forEach(el=>el.addEventListener('click',e=>{ e.stopPropagation(); const i=+el.getAttribute('data-photo-del'); state.formData.photos.splice(i,1); render(); }));
+  const installBtn=app.querySelector('#install-btn'); if(installBtn) installBtn.addEventListener('click',tryInstall);
+}
+
+function refreshSearchOnly(){
+  const input=$('#s-input');
+  const val=input?input.value:state.searchQuery;
+  state.searchQuery=val;
+  const focused=document.activeElement===input;
+  const caret=input?input.selectionStart:null;
+  render();
+  if(focused){ const ni=$('#s-input'); if(ni){ ni.focus(); if(caret!=null) ni.setSelectionRange(caret,caret); } }
+}
+
+/* ============ ACTIONS ============ */
+async function saveItem(){
+  const name=$('#f-name').value.trim();
+  if(!name){
+    state.formDataError={name:true};
+    state.formData={...state.formData,name:''};
+    render();
+    const el=$('#f-name'); if(el){el.focus();}
+    showToast('请填写名称'); return;
+  }
+  const f=state.formData||{};
+  const now=new Date().toISOString().slice(0,10);
+  const item={
+    id:f.id||('i'+Date.now()),
+    name,
+    categoryId:$('#f-cat').value,
+    purchaseDate:$('#f-pdate').value||null,
+    price:$('#f-price').value?+$('#f-price').value:null,
+    quantity:$('#f-qty').value?+$('#f-qty').value:1,
+    usageNote:$('#f-usage').value||'',
+    warrantyExpiry:$('#f-warranty').value||null,
+    replacementCycleDays:$('#f-cycle').value?+$('#f-cycle').value:null,
+    lastReplacedAt:$('#f-last').value||null,
+    tags:$('#f-tags').value?$('#f-tags').value.split(/[,，]/).map(s=>s.trim()).filter(Boolean):[],
+    photos:f.photos||[],
+    updatedAt:now,
+    ownerId:'me',
+  };
+  if(!f.id) item.createdAt=now;
+  await dbPut('items',item);
+  const idx=state.items.findIndex(x=>x.id===item.id);
+  if(idx>=0) state.items[idx]=item; else state.items.push(item);
+  state._lastAddedId=f.id?null:item.id;
+  state.formData=null; state.formDataError=null;
+  state.page='home';
+  showToast(f.id?'已更新':'已添加 "'+name+'"',!f.id);
+  render();
+}
+
+function editItem(){
+  const it=state.items.find(x=>x.id===state.selectedItemId);
+  state.formData={...it,tags:(it.tags||[]).join(', '),photos:[...(it.photos||[])]};
+  state._prevPage='detail';
+  state.page='add';
+  render();
+}
+
+async function deleteItem(){
+  if(!confirm('确认删除该物品？')) return;
+  const it=state.items.find(x=>x.id===state.selectedItemId);
+  if(!it) return;
+  await dbDel('items',it.id);
+  state.items=state.items.filter(x=>x.id!==it.id);
+  state._lastDeleted={item:it,at:Date.now()};
+  state.page='home';
+  showToast('已删除 "'+it.name+'"',true);
+  render();
+  setTimeout(()=>{ if(state._lastDeleted&&Date.now()-state._lastDeleted.at>=4900){ state._lastDeleted=null; state.toast=null; render(); } },5000);
+}
+
+function undoToast(){
+  if(state._lastDeleted&&state._lastDeleted.item){
+    const it=state._lastDeleted.item;
+    dbPut('items',it);
+    state.items.push(it);
+    state._lastDeleted=null;
+  }
+  state.toast=null;
+  render();
+}
+
+async function markReplaced(){
+  const it=state.items.find(x=>x.id===state.selectedItemId);
+  if(!it) return;
+  it.lastReplacedAt=fmtDate(today);
+  it.updatedAt=fmtDate(today);
+  await dbPut('items',it);
+  showToast('已标记为已更换，周期已重置');
+  render();
+}
+
+async function addCategory(){
+  const name=prompt('新分类名称');
+  if(!name) return;
+  const trimmed=name.trim().slice(0,12);
+  if(!trimmed){ showToast('名称不能为空'); return; }
+  const c={id:'c'+Date.now(),name:trimmed,icon:'🏷',isCustom:true,sortOrder:99};
+  await dbPut('categories',c);
+  state.categories.push(c);
+  render();
+}
+
+async function editCategory(id){
+  const c=state.categories.find(x=>x.id===id);
+  if(!c) return;
+  const count=state.items.filter(it=>it.categoryId===id).length;
+  const act=prompt(`编辑分类「${c.name}」\n输入新名称保存；输入「删除」删除该分类${count>0?'（含 '+count+' 件物品，需先迁移）':''}：`,c.name);
+  if(act==null) return;
+  if(act==='删除'){
+    if(count>0){ alert('该分类下有 '+count+' 件物品，请先在物品编辑中迁移到其他分类'); return; }
+    await dbDel('categories',id);
+    state.categories=state.categories.filter(x=>x.id!==id);
+    if(state.selectedCategory===id) state.selectedCategory='all';
+    showToast('已删除分类');
+    render(); return;
+  }
+  const trimmed=act.trim().slice(0,12);
+  if(!trimmed){ showToast('名称不能为空'); return; }
+  c.name=trimmed;
+  await dbPut('categories',c);
+  showToast('已更新分类');
+  render();
+}
+
+async function clearAll(){
+  if(!confirm('将清空全部物品与自建分类，不可恢复。\n建议先导出。确认继续？')) return;
+  await dbClear('items');
+  state.categories=state.categories.filter(c=>!c.isCustom);
+  for(const c of state.categories) await dbPut('categories',c);
+  state.items=[];
+  state.selectedCategory='all';
+  showToast('已清空全部数据');
+  render();
+}
+
+async function exportData(){
+  const data={ version:1, exportedAt:new Date().toISOString(), categories:state.categories, items:state.items };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='物品清单-'+fmtDate(today)+'.json'; a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出 '+state.items.length+' 件物品');
+}
+
+async function importData(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json,application/json,.csv,text/csv';
+  inp.onchange=async()=>{
+    const file=inp.files[0]; if(!file) return;
+    const isCsv=file.name.toLowerCase().endsWith('.csv');
+    const text=await file.text();
+    if(isCsv){ await importCsv(text); }
+    else { await importJson(text); }
+  };
+  inp.click();
+}
+
+async function importJson(text){
+  let data; try{ data=JSON.parse(text); }catch(e){ alert('文件解析失败：JSON 格式错误'); return; }
+  if(!data.items||!Array.isArray(data.items)){ alert('文件格式不对：缺少 items 字段'); return; }
+  const catsIn=(data.categories||[]).reduce((m,c)=>{m[c.id]=c;return m;},{});
+  for(const c of (data.categories||[])) if(!state.categories.find(x=>x.id===c.id)) await dbPut('categories',c);
+  state.categories=await dbAll('categories'); state.categories.sort((a,b)=>(a.sortOrder||0)-(b.sortOrder||0));
+  let ok=0,skip=0;
+  for(const it of data.items){
+    if(!it.id||!it.name){ skip++; continue; }
+    if(state.items.find(x=>x.id===it.id)){ const choice=confirm('物品「'+it.name+'」已存在，是否覆盖？\n取消则跳过该项。'); if(!choice){ skip++; continue; } }
+    if(it.categoryId&&!state.categories.find(c=>c.id===it.categoryId)) it.categoryId='c7';
+    await dbPut('items',it);
+    ok++;
+  }
+  state.items=await dbAll('items');
+  showToast('导入完成：成功 '+ok+' 条'+(skip>0?'，跳过 '+skip+' 条':''));
+  render();
+}
+
+async function importCsv(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){ alert('CSV 文件为空'); return; }
+  const headers=lines[0].split(',').map(s=>s.trim().toLowerCase());
+  const need=hdr=>headers.indexOf(hdr);
+  let ok=0,fail=0;
+  for(let i=1;i<lines.length;i++){
+    const cols=parseCsvLine(lines[i]);
+    const get=hdr=>{const idx=headers.indexOf(hdr);return idx>=0?cols[idx]:'';};
+    const name=get('name')||get('名称');
+    if(!name){ fail++; continue; }
+    const catName_=get('category')||get('分类')||'其他';
+    let cat=state.categories.find(c=>c.name===catName_);
+    if(!cat){ cat={id:'c'+Date.now()+i,name:catName_.slice(0,12),icon:'🏷',isCustom:true,sortOrder:99}; await dbPut('categories',cat); state.categories.push(cat); }
+    const now=new Date().toISOString().slice(0,10);
+    const it={
+      id:'i'+Date.now()+'_'+i,name,categoryId:cat.id,
+      purchaseDate:get('purchasedate')||get('购入日期')||null,
+      price:get('price')||get('价格')?+(get('price')||get('价格')):null,
+      quantity:1,usageNote:get('usagenote')||get('usage')||get('使用方法')||'',
+      warrantyExpiry:get('warrantyexpiry')||get('保修到期')||null,
+      tags:[],photos:[],createdAt:now,updatedAt:now,ownerId:'me'
+    };
+    await dbPut('items',it); state.items.push(it); ok++;
+  }
+  showToast('CSV 导入：成功 '+ok+' 条'+(fail>0?'，失败 '+fail+' 条':''));
+  render();
+}
+function parseCsvLine(s){
+  const out=[];let cur='';let q=false;
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(c==='"'){ if(q&&s[i+1]==='"'){cur+='"';i++;}else q=!q; continue; }
+    if(c===','&&!q){ out.push(cur); cur=''; continue; }
+    cur+=c;
+  }
+  out.push(cur); return out;
+}
+
+function handlePhotoAdd(e){
+  const files=Array.from(e.target.files);
+  const cur=state.formData.photos||[];
+  let left=9-cur.length;
+  if(left<=0){ showToast('最多 9 张照片'); return; }
+  let pending=Math.min(files.length,left);
+  let done=0;
+  files.slice(0,left).forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const compressed=compressImage(img,1000,0.75);
+        state.formData.photos.push(compressed);
+        done++;
+        if(done===pending){ render(); e.target.value=''; }
+      };
+      img.onerror=()=>{ done++; if(done===pending){ render(); e.target.value=''; } };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(f);
+  });
+  if(files.length>left) showToast('仅添加前 '+left+' 张（最多 9 张）');
+}
+function compressImage(img,maxSize,quality){
+  const canvas=document.createElement('canvas');
+  let {width,height}=img;
+  if(width>height&&width>maxSize){ height=height*maxSize/width; width=maxSize; }
+  else if(height>=width&&height>maxSize){ width=width*maxSize/height; height=maxSize; }
+  canvas.width=width; canvas.height=height;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(img,0,0,width,height);
+  try{ return canvas.toDataURL('image/jpeg',quality); }
+  catch(e){ return canvas.toDataURL('image/png'); }
+}
+
+function tryInstall(){
+  if(window.deferredPrompt){
+    window.deferredPrompt.prompt();
+    window.deferredPrompt.userChoice.then(()=>{ window.deferredPrompt=null; });
+  } else {
+    showToast('请用浏览器菜单的「添加到主屏幕」');
+  }
+}
+
+function showToast(text,undo){
+  state.toast={text,undo:!!undo};
+  render();
+  if(!undo) setTimeout(()=>{ state.toast=null; render(); },2200);
+}
+
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); window.deferredPrompt=e; });
+
+/* Service Worker: 注册真实 sw.js（HTTPS / GitHub Pages 下生效，file:// 下忽略）*/
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.log('SW 注册失败（在 file:// 下属正常，部署到 https 后会生效）：', err);
+    });
+  });
+}
+
+/* ====== 启动 ====== */
+init();
+window.addEventListener('hashchange',()=>{});
+</script>
+</body>
+</html>
