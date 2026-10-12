@@ -45,9 +45,14 @@
   .searchbar{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:10px;padding:9px 12px;margin-bottom:10px;cursor:pointer}
   .searchbar .ph{color:var(--sub);font-size:14px;flex:1}
 
-  .chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;-webkit-overflow-scrolling:touch}
-  .chips .c{white-space:nowrap;background:#fff;border:1px solid var(--line);border-radius:16px;padding:5px 12px;font-size:13px;cursor:pointer;color:var(--sub)}
-  .chips .c.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  /* 首页左右分栏布局 */
+  .home-content{display:flex;padding:0;overflow:hidden;align-items:stretch}
+  .sidebar{width:88px;flex:0 0 88px;overflow-y:auto;background:#fff;border-right:1px solid var(--line);padding:6px 0 90px;-webkit-overflow-scrolling:touch}
+  .sidebar .cat{padding:10px 4px;text-align:center;cursor:pointer;font-size:11.5px;color:var(--sub);border-left:3px solid transparent;line-height:1.3;word-break:break-all}
+  .sidebar .cat .ic{font-size:22px;display:block;margin-bottom:4px}
+  .sidebar .cat.on{color:var(--brand);background:var(--brand-soft);border-left-color:var(--brand);font-weight:600}
+  .sidebar .cat:active{background:#f0f3ff}
+  .list-col{flex:1;min-width:0;overflow-y:auto;padding:12px 12px 90px;-webkit-overflow-scrolling:touch}
 
   .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px;margin-bottom:9px;cursor:pointer;display:flex;gap:11px;align-items:center}
   .card:active{background:#fafbff}
@@ -290,9 +295,10 @@ function renderPage(){
 function pageHome(){
   let items=state.items.filter(it=> state.selectedCategory==='all'||it.categoryId===state.selectedCategory);
   items.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
-  const chips=`<div class="chips">${['all',...state.categories.map(c=>c.id)].map(id=>{
+  const sidebar=`<div class="sidebar">${['all',...state.categories.map(c=>c.id)].map(id=>{
     const label=id==='all'?'全部':catName(id);
-    return `<span class="c ${state.selectedCategory===id?'on':''}" data-cat="${id}">${id==='all'?'🗂':catIcon(id)} ${label}</span>`;
+    const ic=id==='all'?'🗂':catIcon(id);
+    return `<div class="cat ${state.selectedCategory===id?'on':''}" data-cat="${id}"><span class="ic">${ic}</span>${esc(label)}</div>`;
   }).join('')}</div>`;
   let body;
   if(state.items.length===0){
@@ -316,10 +322,12 @@ function pageHome(){
   }
   return `
     <div class="appbar"><div><div class="t">我的物品</div><div class="sub">${state.items.length} 件 · 本地存储${navigator.standalone||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)?' · 已安装':''}</div></div></div>
-    <div class="content">
-      <div class="searchbar" data-nav="search"><span>🔍</span><span class="ph">搜索物品、标签…</span></div>
-      ${chips}
-      ${body}
+    <div class="content home-content">
+      ${sidebar}
+      <div class="list-col">
+        <div class="searchbar" data-nav="search"><span>🔍</span><span class="ph">搜索物品、标签…</span></div>
+        ${body}
+      </div>
     </div>
     <button class="fab" data-nav="add">+</button>
     ${bottomNav('home')}`;
